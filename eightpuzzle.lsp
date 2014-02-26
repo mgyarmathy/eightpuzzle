@@ -5,11 +5,12 @@
 
 
 ; === Node ===
-; ( '(configuration) depth action action_list )
+; ( '(configuration) depth action action_list <heuristic_value>)
 ; configuration : (1 2 3 4 5 6 7 8 0)
 ; depth : 0
 ; action : U=UP R=RIGHT D=DOWN L=LEFT 0=ROOT
 ; action_list : (U D R L)
+; heuristic_value : h(node)
 
 
 ; Globals
@@ -25,10 +26,11 @@
 
 ; dfs-iter: iterative version of dfs
 (defun dfs-iter (start-state)
-   (let (cur-node node-list (goal-found NIL))
+   (let (cur-node node-list (goal-found NIL) (largest-list 0))
       (setq node-list (list (make-root-node start-state)))
       (loop (unless (equal goal-found T))
          ;(print node-list)
+         (if (> (length node-list) largest-list) (setq largest-list (length node-list)))
          (if (< (length node-list) 1) (return-from dfs-iter nil))
          (setq cur-node (car node-list))
          (setq node-list (cdr node-list))
@@ -36,6 +38,7 @@
             (let ((action_sequence (fourth cur-node)))
                ; reverse final sequence of actions
                (setf (fourth cur-node) (reverse action_sequence))
+               (print largest-list)
                (return-from dfs-iter cur-node)
             )
             ;else
@@ -47,57 +50,26 @@
    )
 )
 
-;;; DFS-iter is better than DFS-core (dfs-core causes stack overflow very quickly)
-
-; dfs-core: search for a leaf node and return the value
-;(defun dfs-core (node-list)
-;   ; debug
-;   ;(print '---)
-;   ;(print node-list)
-;   (let (cur-node tmp-node-list)
-;      (if (null node-list)
-;         NIL
-;         (progn
-;            (setq cur-node (car node-list))
-;            (setq tmp-node-list (cdr node-list))
-;            (if (goalp cur-node)
-;               (let ((action_sequence (fourth cur-node)))
-;                  ; reverse final sequence of actions
-;                  (setf (fourth cur-node) (reverse action_sequence))
-;                  cur-node
-;               )
-;            ;else
-;               (if (< (second cur-node) *search_depth_limit*)
-;                  (dfs-core (append (expand cur-node tmp-node-list) (copy-tree tmp-node-list)))
-;                  ;else
-;                  ;(return-from dfs-core tmp-node-list)
-;                  (dfs-core tmp-node-list)
-;               )
-;            )
-;         )
-;      )
-;   )
-;)
-
 ; Greedy -- Algorithm
 (defun greedy (start-state heuristic_fn)
-   (let (cur-node node-list (goal-found NIL))
+   (let (cur-node node-list (goal-found NIL) (largest-list 0))
       (setq node-list (assign_greedy_heuristic (list (make-root-node start-state)) heuristic_fn))
       (loop (unless (equal goal-found T))
-         (print node-list)
+         (if (> (length node-list) largest-list) (setq largest-list (length node-list)))
          (if (< (length node-list) 1) (return-from greedy nil))
          (setq cur-node (car node-list))
          (setq node-list (cdr node-list))
-         (if (goalp (first cur-node))
-            (let ((action_sequence (fourth (first cur-node))))
+         (if (goalp cur-node)
+            (let ((action_sequence (fourth cur-node)))
                ; reverse final sequence of actions
-               (setf (fourth (first cur-node)) (reverse action_sequence))
-               (return-from greedy (first cur-node))
+               (setf (fourth cur-node) (reverse action_sequence))
+               (print largest-list)
+               (return-from greedy cur-node)
             )
             ;else -- check depth of node
-            (if (< (second (first cur-node)) *search_depth_limit*)
+            (if (< (second cur-node) *search_depth_limit*)
                (progn
-                  (setq node-list (append (assign_greedy_heuristic (expand (first cur-node) (strip-heuristic node-list)) heuristic_fn) node-list))
+                  (setq node-list (append (assign_greedy_heuristic (expand cur-node node-list) heuristic_fn) node-list))
                   (setq node-list (reorder node-list))
                )
             )
@@ -108,26 +80,27 @@
 
 ; A-Star -- Algorithm
 (defun a_star (start-state heuristic_fn)
-   (let (cur-node node-list (goal-found NIL))
+   (let (cur-node node-list (goal-found NIL) (largest-list 0))
       (setq node-list (assign_astar_heuristic (list (make-root-node start-state)) heuristic_fn))
       (loop (unless (equal goal-found T))
-         (print node-list)
+         (if (> (length node-list) largest-list) (setq largest-list (length node-list)))
          (if (< (length node-list) 1) (return-from a_star nil))
          (setq cur-node (car node-list))
          (setq node-list (cdr node-list))
-         (if (goalp (first cur-node))
-            (let ((action_sequence (fourth (first cur-node))))
+         (if (goalp cur-node)
+            (let ((action_sequence (fourth cur-node)))
                ; reverse final sequence of actions
-               (setf (fourth (first cur-node)) (reverse action_sequence))
-               (return-from a_star (first cur-node))
+               (setf (fourth cur-node) (reverse action_sequence))
+               (print largest-list)
+               (return-from a_star cur-node)
             )
             ;else -- check depth of node
-            (if (< (second (first cur-node)) *search_depth_limit*)
+            ;(if (< (second (first cur-node)) *search_depth_limit*)
                (progn
-                  (setq node-list (append (assign_astar_heuristic (expand (first cur-node) (strip-heuristic node-list)) heuristic_fn) node-list))
+                  (setq node-list (append (assign_astar_heuristic (expand cur-node node-list) heuristic_fn) node-list))
                   (setq node-list (reorder node-list))
                )
-            )
+            ;)
          )
       )
    )
@@ -525,7 +498,14 @@
 (defun assign_greedy_heuristic (node-list heuristic_fn)
    (let (heuristic-list)
       (dolist (node node-list)
-         (setq heuristic-list (cons (list node (funcall heuristic_fn node)) heuristic-list))
+         (if (= (length node) 5)
+            (progn
+               (setf (fifth node) (funcall heuristic_fn node))
+               (setq heuristic-list (cons node heuristic-list))
+            )
+            ;else -- append heuristic value to end of node
+            (setq heuristic-list (cons (reverse (cons (funcall heuristic_fn node) (reverse node))) heuristic-list))
+         )
       )
       heuristic-list
    )
@@ -535,18 +515,16 @@
 (defun assign_astar_heuristic (node-list heuristic_fn)
    (let (heuristic-list)
       (dolist (node node-list)
-         (setq heuristic-list (cons (list node (+ (second node) (funcall heuristic_fn node))) heuristic-list))
+         (if (= (length node) 5)
+            (progn
+               (setf (fifth node) (+ (second node) (funcall heuristic_fn node)))
+               (setq heuristic-list (cons node heuristic-list))
+            )
+            ;else -- append heuristic value to end of node
+            (setq heuristic-list (cons (reverse (cons (+ (second node) (funcall heuristic_fn node)) (reverse node))) heuristic-list))
+         )
       )
       heuristic-list
-   )
-)
-
-(defun strip-heuristic (heuristic-list)
-   (let (node-list)
-      (dolist (node heuristic-list)
-         (setq node-list (cons (first node) node-list))
-      )
-      node-list
    )
 )
 
@@ -554,7 +532,8 @@
 ; (setq node-list (reorder node-list))
 (defun reorder (node-list)
    (let ((sorted-list (copy-tree node-list)))
-      (setq node-list (sort sorted-list #'(lambda (x y) (< (second x) (second y)) )))
+      (setq node-list (sort sorted-list #'(lambda (x y) (< (fifth x) (fifth y)) )))
+      (copy-tree node-list)
    )
 )
 
