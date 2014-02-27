@@ -21,19 +21,13 @@
 ; maximum number needed to solve is 31 (according to: cs.princeton.edu)
 
 
-; DFS -- Algorithm
-(defun dfs (initial_Configuration)
-   (dfs-iter initial_Configuration)
-)
-
-
-; dfs-iter: iterative version of dfs
-(defun dfs-iter (start-state)
+; DFS -- Algorithm (iterative version)
+(defun dfs (start-state)
    (let (cur-node node-list (goal-found NIL) (largest-list 0))
       (setq node-list (list (make-root-node start-state)))
       (loop (unless (equal goal-found T))
          (if (> (length node-list) largest-list) (setq largest-list (length node-list)))
-         (if (< (length node-list) 1) (return-from dfs-iter nil))
+         (if (< (length node-list) 1) (return-from dfs nil))
          (setq cur-node (car node-list))
          (setq node-list (cdr node-list))
          ; debug (print cur-node)
@@ -44,7 +38,7 @@
                (format t "~%Solution Move Sequence: ~S~%" (fourth cur-node))
                (format t "Goal Node Depth: ~S~%" (second cur-node))
                (format t "Largest Node List Size: ~S~%" largest-list)
-               (return-from dfs-iter cur-node)
+               (return-from dfs cur-node)
             )
             ;else -- check depth of node
             (if (< (second cur-node) *search_depth_limit*)
