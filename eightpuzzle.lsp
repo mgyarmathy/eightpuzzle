@@ -14,8 +14,11 @@
 
 
 ; Globals
-(defvar *search_depth_limit* 10) ; maximum number needed to solve is 31 (according to: cs.princeton.edu)
-;; set limit to 5 for easy problems, and 10 for medium problems...not sure about hard yet. (try 15-20)
+; set limit to 10 for easy/medium problems
+;(defvar *search_depth_limit* 10)
+; set limit to 31 for hard problems
+(defvar *search_depth_limit* 31)
+; maximum number needed to solve is 31 (according to: cs.princeton.edu)
 
 
 ; DFS -- Algorithm
@@ -34,11 +37,14 @@
          (if (< (length node-list) 1) (return-from dfs-iter nil))
          (setq cur-node (car node-list))
          (setq node-list (cdr node-list))
+         (print cur-node)
          (if (goalp cur-node)
             (let ((action_sequence (fourth cur-node)))
                ; reverse final sequence of actions
                (setf (fourth cur-node) (reverse action_sequence))
-               (print largest-list)
+               (format t "Solution Move Sequence: ~S~%" (fourth cur-node))
+               (format t "Goal Node Depth: ~S~%" (second cur-node))
+               (format t "Largest Node List Size: ~S~%" largest-list)
                (return-from dfs-iter cur-node)
             )
             ;else
@@ -59,11 +65,14 @@
          (if (< (length node-list) 1) (return-from greedy nil))
          (setq cur-node (car node-list))
          (setq node-list (cdr node-list))
+         (print cur-node)
          (if (goalp cur-node)
             (let ((action_sequence (fourth cur-node)))
                ; reverse final sequence of actions
                (setf (fourth cur-node) (reverse action_sequence))
-               (print largest-list)
+               (format t "Solution Move Sequence: ~S~%" (fourth cur-node))
+               (format t "Goal Node Depth: ~S~%" (second cur-node))
+               (format t "Largest Node List Size: ~S~%" largest-list)
                (return-from greedy cur-node)
             )
             ;else -- check depth of node
@@ -87,20 +96,23 @@
          (if (< (length node-list) 1) (return-from a_star nil))
          (setq cur-node (car node-list))
          (setq node-list (cdr node-list))
+         (print cur-node)
          (if (goalp cur-node)
             (let ((action_sequence (fourth cur-node)))
                ; reverse final sequence of actions
                (setf (fourth cur-node) (reverse action_sequence))
-               (print largest-list)
+               (format t "Solution Move Sequence: ~S~%" (fourth cur-node))
+               (format t "Goal Node Depth: ~S~%" (second cur-node))
+               (format t "Largest Node List Size: ~S~%" largest-list)
                (return-from a_star cur-node)
             )
             ;else -- check depth of node
-            ;(if (< (second (first cur-node)) *search_depth_limit*)
+            (if (< (second cur-node) *search_depth_limit*)
                (progn
                   (setq node-list (append (assign_astar_heuristic (expand cur-node node-list) heuristic_fn) node-list))
                   (setq node-list (reorder node-list))
                )
-            ;)
+            )
          )
       )
    )
@@ -248,8 +260,7 @@
 
 ; heuristic_1 -- number of tiles out-of-place
 (defun heuristic_1 (node)
-   (setq tiles (first node))
-   (let ((h 0))
+   (let ((h 0) (tiles (first node)))
       (if (not (= 1 (first tiles))) (incf h) )
       (if (not (= 2 (second tiles))) (incf h) )
       (if (not (= 3 (third tiles))) (incf h) )
@@ -261,6 +272,86 @@
       (if (not (= 5 (ninth tiles))) (incf h) )
    ;return
       h
+   )
+)
+
+; heuristic_2 -- manhattan distance of all tiles from correct position
+(defun heuristic_2 (node)
+   (let ((total 0) (tiles (first node)))
+      (loop
+         for index from 0 to 8
+         for val in tiles
+         do (setq total (+ total (manhattan_distance index val)))
+      )
+      total
+   )
+)
+
+(defun manhattan_distance (index val)
+   (+ (xdiff index val) (ydiff index val))
+)
+
+(defun xdiff (index val)
+   (abs (- (xcoord index) (correct_xcoord val)))
+)
+
+(defun ydiff (index val)
+   (abs (- (ycoord index) (correct_ycoord val)))
+)
+
+(defun xcoord (index)
+   (cond
+      ( (= index 0) 1)
+      ( (= index 1) 2)
+      ( (= index 2) 3)
+      ( (= index 3) 1)
+      ( (= index 4) 2)
+      ( (= index 5) 3)
+      ( (= index 6) 1)
+      ( (= index 7) 2)
+      ( (= index 8) 3)
+   )
+)
+
+(defun ycoord (index)
+   (cond
+      ( (= index 0) 1)
+      ( (= index 1) 1)
+      ( (= index 2) 1)
+      ( (= index 3) 2)
+      ( (= index 4) 2)
+      ( (= index 5) 2)
+      ( (= index 6) 3)
+      ( (= index 7) 3)
+      ( (= index 8) 3)
+   )
+)
+
+(defun correct_xcoord (val)
+   (cond
+      ( (= val 1) 1)
+      ( (= val 2) 2)
+      ( (= val 3) 3)
+      ( (= val 8) 1)
+      ( (= val 0) 2)
+      ( (= val 4) 3)
+      ( (= val 7) 1)
+      ( (= val 6) 2)
+      ( (= val 5) 3)
+   )
+)
+
+(defun correct_ycoord (val)
+   (cond
+      ( (= val 1) 1)
+      ( (= val 2) 1)
+      ( (= val 3) 1)
+      ( (= val 8) 2)
+      ( (= val 0) 2)
+      ( (= val 4) 2)
+      ( (= val 7) 3)
+      ( (= val 6) 3)
+      ( (= val 5) 3)
    )
 )
 
